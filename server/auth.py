@@ -36,15 +36,29 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto")
 
+
+def _normalize_bcrypt_password(password: str) -> str | bytes:
+    """Normalize passwords to avoid bcrypt's 72-byte length limit.
+
+    Some bcrypt backends raise a ValueError for passwords longer than 72 bytes.
+    Truncate to 72 bytes to match typical bcrypt behavior instead of crashing.
+    """
+    encoded = password.encode("utf-8")
+    if len(encoded) <= 72:
+        return password
+    return encoded[:72]
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    normalized = _normalize_bcrypt_password(password)
+    return pwd_context.hash(normalized)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    normalized = _normalize_bcrypt_password(plain_password)
+    return pwd_context.verify(normalized, hashed_password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[datetime.timedelta] = None) -> str:
