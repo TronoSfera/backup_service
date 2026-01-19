@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import datetime
+import hashlib
 from typing import Optional
 
 from jose import JWTError, jwt
@@ -45,16 +46,17 @@ except Exception:
 pwd_context = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto")
 
 
-def _normalize_bcrypt_password(password: str) -> str | bytes:
+def _normalize_bcrypt_password(password: str) -> str:
     """Normalize passwords to avoid bcrypt's 72-byte length limit.
 
     Some bcrypt backends raise a ValueError for passwords longer than 72 bytes.
-    Truncate to 72 bytes to match typical bcrypt behavior instead of crashing.
+    Instead of truncating, hash the original bytes with SHA-256 to preserve
+    entropy while ensuring the input length stays within bcrypt limits.
     """
     encoded = password.encode("utf-8")
     if len(encoded) <= 72:
         return password
-    return encoded[:72]
+    return hashlib.sha256(encoded).hexdigest()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)
 
