@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">Client {{ client.id }} – {{ client.name }}</h1>
+<p class="mb-4 text-sm text-gray-700">Owner: <span class="font-medium">{{ client.owner.username }}</span> | Token: <code class="bg-gray-100 px-2 py-1 rounded text-sm">{{ client.token }}</code></p>
+<p class="mb-6 text-sm text-gray-700">Last ping: {{ client.last_ping if client.last_ping else '-' }}<br>
+   Last backup: {{ client.last_backup if client.last_backup else '-' }}</p>
+
+<!-- Pre-backup commands -->
+<h2 class="text-xl font-semibold mb-2">Pre‑Backup Commands</h2>
+<form action="/api/clients/{{ client.id }}/config" method="post" class="mb-8 space-y-4">
+    <div>
+        <label for="pre_commands" class="block text-sm font-medium text-gray-700 mb-1">Enter commands (one per line):</label>
+        <textarea name="pre_commands" id="pre_commands" rows="4" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2">{{ client.pre_commands }}</textarea>
+    </div>
+    <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Update Commands</button>
+</form>
+
+<!-- Backups table -->
+<h2 class="text-xl font-semibold mb-2">Backups</h2>
+{% if backups %}
+<div class="overflow-x-auto mb-8">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+        <tr>
+            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Path</th>
+            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version Time</th>
+            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size (bytes)</th>
+            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hash</th>
+            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Download</th>
+        </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+        {% for b in backups %}
+        <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ b.id }}</td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ b.original_path }}</td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ b.version_time }}</td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ b.size }}</td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm font-mono text-gray-900">{{ b.file_hash.hash_value }}</td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-blue-600">
+                <a href="/api/clients/{{ client.token }}/download/{{ b.id }}" class="hover:underline">Download</a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="mb-8 text-sm text-gray-700">No backups yet.</p>
+{% endif %}
+
+<h2 class="text-xl font-semibold mb-2">File Structure</h2>
+{% if files %}
+<div class="overflow-x-auto mb-8">
+    <ul class="list-disc pl-6 text-sm text-gray-800">
+    {% for f in files %}
+        <li>{{ f.path }}{% if f.is_dir %}/{% endif %}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% else %}
+<p class="mb-8 text-sm text-gray-700">No file structure available. The client will send its file list on the next backup cycle.</p>
+{% endif %}
+
+<!-- Tasks table -->
+<h2 class="text-xl font-semibold mb-2">Backup Tasks</h2>
+{% if tasks %}
+<div class="overflow-x-auto mb-4">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+        <tr>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Path</th>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency (min)</th>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Retention</th>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Compress</th>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Run</th>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Run</th>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+        </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+        {% for t in tasks %}
+        <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ t.path }}</td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ t.frequency_minutes }}</td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                {% if t.retention_versions %}{{ t.retention_versions }} versions{% endif %}
+                {% if t.retention_days %}
+                    {% if t.retention_versions %}<br>{% endif %}
+                    {{ t.retention_days }} days
+                {% endif %}
+                {% if not t.retention_versions and not t.retention_days %}-{% endif %}
+            </td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{% if t.compress %}Yes{% else %}No{% endif %}</td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ t.last_run if t.last_run else '-' }}</td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ t.next_run if t.next_run else '-' }}</td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                <form action="/api/clients/{{ client.id }}/tasks/{{ t.id }}/run" method="post">
+                    <button type="submit" class="text-blue-600 hover:underline">Run Now</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="mb-4 text-sm text-gray-700">No backup tasks configured.</p>
+{% endif %}
+
+<!-- Task history section -->
+{% if tasks %}
+<h3 class="text-lg font-semibold mb-2">Task History</h3>
+<div class="space-y-6 mb-8">
+    {% for t in tasks %}
+    <div class="border border-gray-200 rounded-md p-4">
+        <h4 class="text-md font-medium mb-2">Path: {{ t.path }}</h4>
+        <!-- Show task run history -->
+        <h5 class="text-sm font-semibold mb-1">Runs</h5>
+        {% set runs = runs_map.get(t.id) %}
+        {% if runs and runs|length > 0 %}
+        <div class="overflow-x-auto mb-4">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Start</th>
+                    <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">End</th>
+                    <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                {% for run in runs %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2 whitespace-nowrap">{{ run.start_time }}</td>
+                    <td class="px-4 py-2 whitespace-nowrap">{{ run.end_time if run.end_time else '-' }}</td>
+                    <td class="px-4 py-2 whitespace-nowrap">{{ run.status }}</td>
+                    <td class="px-4 py-2 whitespace-pre-wrap break-all">{{ run.message or '-' }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-700 mb-4">No runs recorded for this task.</p>
+        {% endif %}
+        <!-- Show available backups for this task path -->
+        <h5 class="text-sm font-semibold mb-1">Backups</h5>
+        {% set bks = backups_map.get(t.path) %}
+        {% if bks and bks|length > 0 %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                    <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Version Time</th>
+                    <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                    <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Download</th>
+                </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                {% for b in bks %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2 whitespace-nowrap">{{ b.id }}</td>
+                    <td class="px-4 py-2 whitespace-nowrap">{{ b.version_time }}</td>
+                    <td class="px-4 py-2 whitespace-nowrap">{{ b.size }}</td>
+                    <td class="px-4 py-2 whitespace-nowrap text-blue-600"><a href="/api/clients/{{ client.token }}/download/{{ b.id }}" class="hover:underline">Download</a></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-700">No backups available for this path.</p>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Create new task -->
+<h3 class="text-lg font-semibold mb-2">Create New Task</h3>
+<form action="/api/clients/{{ client.id }}/tasks" method="post" class="space-y-4 mb-8">
+    <div>
+        <label for="path" class="block text-sm font-medium text-gray-700 mb-1">Path to backup</label>
+        <input type="text" name="path" id="path" list="file_paths" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2" required>
+        <datalist id="file_paths">
+            {% for f in files %}
+            {% if not f.is_dir %}<option value="{{ f.path }}"></option>{% endif %}
+            {% endfor %}
+        </datalist>
+    </div>
+    <div>
+        <label for="frequency_minutes" class="block text-sm font-medium text-gray-700 mb-1">Frequency (minutes)</label>
+        <input type="number" name="frequency_minutes" id="frequency_minutes" min="1" value="60" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2" required>
+    </div>
+    <div>
+        <label for="pre_commands_task" class="block text-sm font-medium text-gray-700 mb-1">Pre‑commands (one per line)</label>
+        <textarea name="pre_commands" id="pre_commands_task" rows="3" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2"></textarea>
+    </div>
+    <div class="flex space-x-4">
+        <div class="w-1/2">
+            <label for="retention_versions" class="block text-sm font-medium text-gray-700 mb-1">Retention Versions (optional)</label>
+            <input type="number" name="retention_versions" id="retention_versions" min="1" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2">
+        </div>
+        <div class="w-1/2">
+            <label for="retention_days" class="block text-sm font-medium text-gray-700 mb-1">Retention Days (optional)</label>
+            <input type="number" name="retention_days" id="retention_days" min="1" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2">
+        </div>
+    </div>
+    <div class="flex items-center">
+        <input type="checkbox" name="compress" id="compress" value="true" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+        <label for="compress" class="ml-2 block text-sm text-gray-700">Compress before uploading</label>
+    </div>
+    <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Add Task</button>
+</form>
+
+<!-- Logs table -->
+<h2 class="text-xl font-semibold mb-2">Recent Logs</h2>
+{% if logs %}
+<div class="overflow-x-auto mb-8">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+        <tr>
+            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
+            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+        </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+        {% for log in logs %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ log.timestamp }}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ log.level }}</td>
+                <td class="px-4 py-2 whitespace-pre-wrap break-all text-sm text-gray-900">{{ log.message }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="mb-8 text-sm text-gray-700">No logs.</p>
+{% endif %}
+
+<p><a href="/clients" class="text-blue-600 hover:underline">&larr; Back to list</a></p>
+{% endblock %}

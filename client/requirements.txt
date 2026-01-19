@@ -1,0 +1,6 @@
+requests
+PyYAML
+fastapi
+uvicorn
+jinja2
+python-multipart

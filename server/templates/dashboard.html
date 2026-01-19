@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">Backup Service Admin Dashboard</h1>
+<p class="mb-6">Welcome, {{ user.username }}!</p>
+
+<!-- Clients table -->
+<h2 class="text-xl font-semibold mb-2">Clients</h2>
+<div class="overflow-x-auto mb-8">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client ID</th>
+                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
+                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Ping</th>
+                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Backup</th>
+                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Token</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+        {% for client in clients %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ client.id }}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ client.name }}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ client.owner.username }}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ client.last_ping if client.last_ping else '-' }}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ client.last_backup if client.last_backup else '-' }}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm font-mono text-gray-900"><code>{{ client.token }}</code></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Create user form -->
+<h2 class="text-xl font-semibold mb-2">Create User</h2>
+<form action="/api/register_user" method="post" class="mb-8 space-y-4">
+    <div>
+        <label for="admin_username" class="block text-sm font-medium text-gray-700 mb-1">Username:</label>
+        <input id="admin_username" type="text" name="username" required class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2" />
+    </div>
+    <div>
+        <label for="admin_password" class="block text-sm font-medium text-gray-700 mb-1">Password:</label>
+        <input id="admin_password" type="password" name="password" required class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2" />
+    </div>
+    <div class="flex items-center">
+        <input id="admin_is_admin" type="checkbox" name="is_admin" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+        <label for="admin_is_admin" class="ml-2 block text-sm text-gray-700">Is Admin</label>
+    </div>
+    <div>
+        <label for="admin_retention_days" class="block text-sm font-medium text-gray-700 mb-1">Retention Days:</label>
+        <input id="admin_retention_days" type="number" name="retention_days" min="1" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2" />
+    </div>
+    <div>
+        <label for="admin_retention_versions" class="block text-sm font-medium text-gray-700 mb-1">Retention Versions:</label>
+        <input id="admin_retention_versions" type="number" name="retention_versions" min="1" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2" />
+    </div>
+    <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Create User</button>
+</form>
+
+<!-- Create client form -->
+<h2 class="text-xl font-semibold mb-2">Create Client</h2>
+<form action="/api/clients/register" method="post" class="space-y-4">
+    <div>
+        <label for="new_client_name" class="block text-sm font-medium text-gray-700 mb-1">Client Name:</label>
+        <input id="new_client_name" type="text" name="name" required class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2" />
+    </div>
+    <div>
+        <label for="new_client_owner" class="block text-sm font-medium text-gray-700 mb-1">Owner ID (optional):</label>
+        <input id="new_client_owner" type="number" name="owner_id" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2" />
+    </div>
+    <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Create Client</button>
+</form>
+{% endblock %}

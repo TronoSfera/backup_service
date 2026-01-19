@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>{{ title if title else 'Backup Service' }}</title>
+    <!-- Tailwind CSS via Play CDN -->
+    <!-- The Play CDN script adds Tailwind's utility classes to your HTML so you can start using them immediately【342154051484276†L285-L295】. -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body>
+    <header class="bg-gray-800 text-white">
+        <nav class="container mx-auto px-4 py-3 flex items-center space-x-4">
+            <a href="/" class="text-xl font-semibold">Backup Service</a>
+            <a href="/clients" class="hover:underline">Clients</a>
+        </nav>
+    </header>
+    <main class="container mx-auto p-4">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

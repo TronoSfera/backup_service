@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  server:
+    build: ./server
+    container_name: backup_server
+    ports:
+      - "8000:8000"
+    environment:
+      # Change SECRET_KEY in production
+      SECRET_KEY: "mysecretkey"
+      # Use Postgres instead of SQLite.  The DATABASE_URL uses the same
+      # credentials defined in the db service below.
+      DATABASE_URL: "postgresql+psycopg2://backup:backup@db:5432/backup"
+      # Configure S3 to point at the local MinIO service.  These values
+      # correspond to the settings of the minio container defined below.
+      S3_BUCKET: "backup"
+      AWS_ACCESS_KEY_ID: "minio"
+      AWS_SECRET_ACCESS_KEY: "minio123"
+      AWS_REGION: "us-east-1"
+      # Endpoint for the local S3 service
+      S3_ENDPOINT: "http://minio:9000"
+    volumes:
+      # Persist local file storage
+      - server_data:/app/data
+      # Persist SQLite or Postgres database
+      - server_db:/app/backup.db
+
+  db:
+    image: postgres:15
+    container_name: backup_db
+    environment:
+      POSTGRES_USER: backup
+      POSTGRES_PASSWORD: backup
+      POSTGRES_DB: backup
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "backup"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Lightweight S3-compatible storage using MinIO.  This service
+  # provides an object store accessible at :9000 and a web console at
+  # :9001.  Credentials and bucket configuration are set to match the
+  # server environment variables above.
+  minio:
+    image: quay.io/minio/minio
+    container_name: backup_minio
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  server_data:
+  server_db:
+  postgres_data:
+  minio_data:

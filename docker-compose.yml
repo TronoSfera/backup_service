@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  server:
+    build: ./server
+    container_name: backup_server
+    ports:
+      - "8000:8000"
+    environment:
+      # Change SECRET_KEY in production
+      SECRET_KEY: "mysecretkey"
+      # Use Postgres instead of SQLite.  The DATABASE_URL uses the same
+      # credentials defined in the db service below.
+      DATABASE_URL: "postgresql+psycopg2://backup:backup@db:5432/backup"
+      # Configure S3 to point at the local MinIO service.  These values
+      # correspond to the settings of the minio container defined below.
+      S3_BUCKET: "backup"
+      AWS_ACCESS_KEY_ID: "minio"
+      AWS_SECRET_ACCESS_KEY: "minio123"
+      AWS_REGION: "us-east-1"
+      # Endpoint for the local S3 service
+      S3_ENDPOINT: "http://minio:9000"
+    volumes:
+      # Persist local file storage
+      - server_data:/app/data
+      # Persist SQLite database
+      - server_db:/app/backup.db
+
+  # Example Postgres service (optional)
+  db:
+    image: postgres:15
+    container_name: backup_db
+    environment:
+      POSTGRES_USER: backup
+      POSTGRES_PASSWORD: backup
+      POSTGRES_DB: backup
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "backup"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Lightweight S3-compatible storage using MinIO.  This service
+  # provides an object store accessible at :9000 and a web console at
+  # :9001.  Credentials and bucket configuration are set to match the
+  # server environment variables above.
+  minio:
+    image: quay.io/minio/minio
+    container_name: backup_minio
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  client:
+    build: ./client
+    container_name: backup_client
+    depends_on:
+      - server
+    environment:
+      # Address of the server container; uses Docker's internal DNS
+      SERVER_URL: "http://server:8000"
+      # Provide credentials of a user with permission to register clients
+      USERNAME: "admin"
+      PASSWORD: "adminpass"
+      # Name of this client (will default to hostname if omitted)
+      CLIENT_NAME: "example-client"
+      # Directories inside the client container to back up
+      MONITORED_PATHS: "/data"
+      # Pre‑backup commands (e.g. dumping a PostgreSQL database)
+      PRE_COMMANDS: ""
+      # Ping interval in seconds
+      PING_INTERVAL: "300"
+      # Backup interval in seconds
+      BACKUP_INTERVAL: "3600"
+    volumes:
+      # Mount host data to back up; adjust to your needs
+      - client_data:/data
+    ports:
+      # Expose the client's web interface on port 8080
+      - "8080:8080"
+
+volumes:
+  server_data:
+  server_db:
+  client_data:
+  postgres_data:
+  minio_data:

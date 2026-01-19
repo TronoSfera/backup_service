@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  client:
+    build: ./client
+    container_name: backup_client
+    # Expose the client's web interface on port 8080 so that it can be
+    # configured via a browser on the host.
+    ports:
+      - "8080:8080"
+    environment:
+      # Provide the address of the remote backup server.  This should be
+      # updated to the actual server URL when deploying the client
+      # independently.  Leaving it empty allows the user to set it via
+      # the web interface.
+      SERVER_URL: ""
+      # Credentials of a user with permission to register clients.  These
+      # can also be provided via the web interface.  If left blank the
+      # client will wait for user input.
+      USERNAME: ""
+      PASSWORD: ""
+      # Name of this client (will default to hostname if omitted).  This
+      # value can be overridden in the web UI.
+      CLIENT_NAME: ""
+      # Directories inside the client container to back up.  These can
+      # also be specified via the web UI as a comma‑separated list.
+      MONITORED_PATHS: "/data"
+      # Pre‑backup commands (e.g. dumping a PostgreSQL database).  These
+      # can be left empty and configured later on the server.
+      PRE_COMMANDS: ""
+      # Ping and backup intervals.  Modify as needed.
+      PING_INTERVAL: "300"
+      BACKUP_INTERVAL: "3600"
+    volumes:
+      # Mount host data to back up; adjust to your needs
+      - client_data:/data
+
+volumes:
+  client_data:
