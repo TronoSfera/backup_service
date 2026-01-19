@@ -77,6 +77,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(data: dict, expires_delta: Optional[datetime.timedelta] = None) -> str:
     to_encode = data.copy()
+    if "sub" in to_encode and isinstance(to_encode["sub"], int):
+        to_encode["sub"] = str(to_encode["sub"])
     expire = datetime.datetime.utcnow() + (
         expires_delta or datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
@@ -101,12 +103,19 @@ async def get_current_user(
         raise credentials_exception
     try:
         payload = jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int | None = payload.get("sub")
-        if user_id is None:
+        subject = payload.get("sub")
+        if subject is None:
             raise credentials_exception
     except JWTError as e:
         raise credentials_exception from e
-    user = db.query(models.User).filter(models.User.id == user_id).first()
+    user: models.User | None = None
+    if isinstance(subject, str):
+        if subject.isdigit():
+            user = db.query(models.User).filter(models.User.id == int(subject)).first()
+        else:
+            user = db.query(models.User).filter(models.User.username == subject).first()
+    elif isinstance(subject, int):
+        user = db.query(models.User).filter(models.User.id == subject).first()
     if user is None:
         raise credentials_exception
     return user
