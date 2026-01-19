@@ -690,7 +690,18 @@ async def update_client_config(
 # ======== Web interface routes =========
 
 @app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request) -> Response:
+async def login_page(
+    request: Request,
+    db: Session = Depends(database.get_db),
+) -> Response:
+    raw_token = request.cookies.get("access_token")
+    if raw_token:
+        try:
+            current_user = await auth.get_current_user(request=request, token=None, db=db)
+        except HTTPException:
+            current_user = None
+        if current_user and current_user.is_admin:
+            return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(
         "login.html",
         {
@@ -725,6 +736,8 @@ async def login_submit(
         access_token,
         httponly=True,
         samesite="lax",
+        path="/",
+        max_age=auth.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
     return response
 
