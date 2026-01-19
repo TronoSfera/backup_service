@@ -139,7 +139,13 @@ class BackupClient:
         url = f"{self.server_url}/api/login"
         data = {"username": self.username, "password": self.password}
         # Use form-encoded data as required by OAuth2PasswordRequestForm
-        response = requests.post(url, data=data)
+        try:
+            response = requests.post(url, data=data)
+        except requests.exceptions.RequestException as exc:
+            raise RuntimeError(
+                "Failed to connect to the backup server. "
+                f"Verify the server is running and SERVER_URL is correct ({self.server_url})."
+            ) from exc
         if response.status_code != 200:
             raise RuntimeError(f"Failed to login: {response.text}")
         token = response.json()["access_token"]
