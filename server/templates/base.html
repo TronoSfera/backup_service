@@ -12,6 +12,13 @@
         <nav class="container mx-auto px-4 py-3 flex items-center space-x-4">
             <a href="/" class="text-xl font-semibold">Backup Service</a>
             <a href="/clients" class="hover:underline">Clients</a>
+            <div class="ml-auto">
+                {% if user %}
+                    <a href="/logout" class="hover:underline">Logout</a>
+                {% else %}
+                    <a href="/login" class="hover:underline">Login</a>
+                {% endif %}
+            </div>
         </nav>
     </header>
     <main class="container mx-auto p-4">
