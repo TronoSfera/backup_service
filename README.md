@@ -133,6 +133,10 @@ by supplying a `.env` file, or via the built‑in web interface on port 8080.
   browser, authenticate using a token from `/api/login`, and use the “Create
   User” form.  Alternatively, you can call the `/api/register_user` endpoint
   directly using a bearer token from an existing admin.
+* On first startup, the server will create an initial admin user if the
+  database is empty.  Configure `ADMIN_USERNAME` and `ADMIN_PASSWORD` (or
+  `USERNAME`/`PASSWORD` for backward compatibility) in your environment or
+  `.env` file to control these credentials.
 * Ensure that the retention policies set on each user reflect your backup
   strategy.  For example, specifying `retention_versions=5` keeps the five
   most recent versions of each file; specifying `retention_days=30` retains
