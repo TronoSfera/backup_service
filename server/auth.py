@@ -19,6 +19,7 @@ from typing import Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from passlib.handlers import bcrypt as passlib_bcrypt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -34,6 +35,13 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 
 
 # Password hashing context
+try:
+    passlib_bcrypt.bcrypt.set_backend("builtin")
+    passlib_bcrypt.bcrypt_sha256.set_backend("builtin")
+except Exception:
+    # If the builtin backend is unavailable, fall back to the default backend.
+    pass
+
 pwd_context = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto")
 
 
