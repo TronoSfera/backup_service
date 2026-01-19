@@ -44,7 +44,7 @@ import sys
 import time
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Tuple
 
 import requests
 import yaml  # type: ignore
@@ -402,7 +402,7 @@ class BackupClient:
         password: str,
         client_name: str,
         monitored_paths: List[str],
-    ) -> Optional[int]:
+    ) -> Tuple[Optional[int], Optional[str]]:
         """
         Apply a new configuration provided by the user via the web UI.
 
@@ -417,8 +417,9 @@ class BackupClient:
             client_name: Human‑readable name for this client.
             monitored_paths: List of directory paths to back up.
         Returns:
-            The numeric client ID assigned by the server, or ``None`` if
-            registration fails.
+            A tuple of (client_id, error_message). ``client_id`` is the
+            numeric client ID assigned by the server on success; otherwise
+            ``None`` and a human-readable error message are returned.
         """
         # Update attributes
         self.server_url = server_url.strip()
@@ -439,11 +440,11 @@ class BackupClient:
             self._register_client()
             # Save state to disk
             self._save_state()
-            return self.state.client_id
+            return self.state.client_id, None
         except Exception as e:
             # Log any error; the backup loop will skip operations until configured
             self.send_log(level="ERROR", message=str(e))
-            return None
+            return None, str(e)
 
     def run(self) -> None:
         """
@@ -612,7 +613,7 @@ def create_app(client: BackupClient) -> FastAPI:
 
         # Apply configuration and attempt to register the client.  apply_config
         # returns the client_id if registration succeeds.
-        client_id = client.apply_config(
+        client_id, error_message = client.apply_config(
             server_url=server_url,
             username=username,
             password=password,
@@ -630,6 +631,7 @@ def create_app(client: BackupClient) -> FastAPI:
                 },
             )
         # If registration failed, re-render the form with a generic error message
+        error_message = error_message or "Failed to authenticate or register. Please check your credentials and server address."
         return templates.TemplateResponse(
             "login.html",
             {
@@ -638,7 +640,7 @@ def create_app(client: BackupClient) -> FastAPI:
                 "username": username,
                 "client_name": client_name,
                 "monitored_paths": monitored_paths,
-                "error": "Failed to authenticate or register. Please check your credentials and server address.",
+                "error": error_message,
             },
         )
 
