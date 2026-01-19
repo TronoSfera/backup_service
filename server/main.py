@@ -37,9 +37,10 @@ from fastapi import (
     Request,
     Response,
 )
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.exception_handlers import http_exception_handler
 from sqlalchemy.orm import Session
 
 from . import models, schemas, auth, storage as storage_module, database
@@ -48,6 +49,17 @@ app = FastAPI(title="Backup Service")
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 
 storage = storage_module.get_storage()
+
+
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException) -> Response:
+    if (
+        exc.status_code == status.HTTP_401_UNAUTHORIZED
+        and "text/html" in request.headers.get("accept", "")
+        and not request.url.path.startswith("/api")
+    ):
+        return RedirectResponse(url="/login")
+    return await http_exception_handler(request, exc)
 
 
 @app.on_event("startup")
@@ -648,6 +660,53 @@ async def update_client_config(
 
 
 # ======== Web interface routes =========
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request) -> Response:
+    return templates.TemplateResponse(
+        "login.html",
+        {
+            "request": request,
+            "title": "Admin Login",
+        },
+    )
+
+
+@app.post("/login", response_class=HTMLResponse)
+async def login_submit(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(database.get_db),
+) -> Response:
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user or not auth.verify_password(password, user.hashed_password):
+        return templates.TemplateResponse(
+            "login.html",
+            {
+                "request": request,
+                "title": "Admin Login",
+                "error": "Invalid username or password.",
+            },
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+    access_token = auth.create_access_token(data={"sub": user.id, "is_admin": user.is_admin})
+    response = RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
+    response.set_cookie(
+        "access_token",
+        access_token,
+        httponly=True,
+        samesite="lax",
+    )
+    return response
+
+
+@app.get("/logout")
+async def logout() -> Response:
+    response = RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+    response.delete_cookie("access_token")
+    return response
+
 
 @app.get("/clients", response_class=HTMLResponse)
 async def list_clients_page(
