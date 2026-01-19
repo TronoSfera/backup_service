@@ -9,6 +9,9 @@ services:
     environment:
       # Change SECRET_KEY in production
       SECRET_KEY: "mysecretkey"
+      # Initial admin user (created on first startup if no users exist)
+      ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-adminpass}"
       # Use Postgres instead of SQLite.  The DATABASE_URL uses the same
       # credentials defined in the db service below.
       DATABASE_URL: "postgresql+psycopg2://backup:backup@db:5432/backup"

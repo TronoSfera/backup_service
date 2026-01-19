@@ -51,6 +51,32 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "t
 storage = storage_module.get_storage()
 
 
+def ensure_default_admin() -> None:
+    """Seed an initial admin user when the database is empty.
+
+    Uses ADMIN_USERNAME/ADMIN_PASSWORD, falling back to USERNAME/PASSWORD for
+    backward compatibility with existing compose files and .env settings.
+    """
+    username = os.getenv("ADMIN_USERNAME") or os.getenv("USERNAME")
+    password = os.getenv("ADMIN_PASSWORD") or os.getenv("PASSWORD")
+    if not username or not password:
+        return
+    db = database.SessionLocal()
+    try:
+        existing_user = db.query(models.User).first()
+        if existing_user:
+            return
+        admin = models.User(
+            username=username,
+            hashed_password=auth.hash_password(password),
+            is_admin=True,
+        )
+        db.add(admin)
+        db.commit()
+    finally:
+        db.close()
+
+
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request: Request, exc: HTTPException) -> Response:
     if (
@@ -76,6 +102,8 @@ async def on_startup() -> None:
     except Exception:
         # Column already exists or migration failed; ignore
         pass
+
+    ensure_default_admin()
 
 
 @app.post("/api/register_user", response_model=schemas.UserOut)
