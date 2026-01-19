@@ -35,15 +35,19 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 
-# Password hashing context
-try:
-    passlib_bcrypt.bcrypt.set_backend("builtin")
-    passlib_bcrypt.bcrypt_sha256.set_backend("builtin")
-except Exception:
-    # If the builtin backend is unavailable, fall back to the default backend.
-    pass
+def _build_password_context() -> CryptContext:
+    """Create a password hashing context with a safe backend fallback."""
+    try:
+        passlib_bcrypt.bcrypt.set_backend("builtin")
+        passlib_bcrypt.bcrypt_sha256.set_backend("builtin")
+        passlib_bcrypt.bcrypt_sha256.hash("passlib-backend-check")
+        return CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto")
+    except Exception:
+        # bcrypt backends can fail with newer bcrypt releases; fall back to pbkdf2.
+        return CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
-pwd_context = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto")
+
+pwd_context = _build_password_context()
 
 
 def _normalize_bcrypt_password(password: str) -> str:
